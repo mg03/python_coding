@@ -1,0 +1,152 @@
+#!/usr/bin/env python
+
+'''
+
+Code to parse a log, in format:
+
+01-10-2018,error1,details
+01-10-2018,error1,details
+01-10-2018,error2,details
+01-10-2018,error3,details
+01-20-2018,error1,details
+01-20-2018,error3,details
+01-30-2018,error2,details
+01-30-2018,error2,details
+01-30-2018,error1,details
+01-30-2018,error3,details
+
+
+print report in this format:
+
+Date Time: 01-10-2018
+Error Type: error1 - Count: 2
+Error Type: error2 - Count: 1
+Error Type: error3 - Count: 1
+Date Time: 01-20-2018
+Error Type: error1 - Count: 1
+Error Type: error3 - Count: 1
+Date Time: 01-30-2018
+Error Type: error1 - Count: 1
+Error Type: error2 - Count: 2
+
+Reads one line at a time, hence has conservative memory utilization
+
+Checks if file exists or not by appending current dir to the file path ... script assumes file is in
+same dir as script
+
+_onepassaggregate: 
+
+Reads one line at a time, hence has conservative memory utilization
+Puts info into a nested dict 
+
+printreport:
+
+Loops over outer and inner dict to print report
+
+Included unit test to check for ouput given a input file
+
+Results while running the code
+
+./box.py
+Date Time: 01-10-2018
+Error Type: error1 - Count: 2
+Error Type: error2 - Count: 1
+Error Type: error3 - Count: 1
+
+Date Time: 01-20-2018
+Error Type: error1 - Count: 1
+Error Type: error3 - Count: 1
+
+Date Time: 01-30-2018
+Error Type: error1 - Count: 1
+Error Type: error2 - Count: 2
+Error Type: error3 - Count: 1
+
+./box.py test
+test_onepassaggregate (__main__.ReportGeneratorTest) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK
+
+Time to solve:
+
+60 mins for the main code
+
+30 mins to write unit testing 
+
+15 mins for documentation
+
+'''
+
+
+import os
+import sys
+
+class ReportGenerator(object):
+
+    def __init__(self, file):
+        self.overalld = {}
+        # self.file = file
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        # print dir_path
+        self.file = os.path.join(dir_path, file)
+        assert (os.path.isfile(self.file)), '{} File not found'.format(self.file)
+
+    def _onepassaggregate(self):
+        with open(self.file, 'r') as f:
+            for line in f:
+                l = line.split(',')
+                # since we knwo the columns - col1 is date, col2 is error type and col3 is detail
+                if l[0] not in self.overalld:
+                    self.overalld[l[0]] = {}
+                    self.overalld[l[0]][l[1]] = 1
+                else:
+                    if l[1] not in self.overalld[l[0]]:
+                        self.overalld[l[0]][l[1]] = 1
+                    else:
+                        self.overalld[l[0]][l[1]] += 1
+            
+        return self.overalld
+
+    def printreport(self):
+        dictionary = self._onepassaggregate()
+        for key, value in dictionary.items():
+            print('Date Time: {}').format(key)
+            if type(value) is dict:
+                for k, v in value.items():
+                    print('Error Type: {} - Count: {}').format(k, v)
+            else:
+                print "No error type in this date"
+            print('') 
+
+
+import unittest
+
+class ReportGeneratorTest(unittest.TestCase):
+    '''
+    Test for ReportGenerator
+    '''
+    def __init__(self, testname, args):
+        super(ReportGeneratorTest, self).__init__(testname)
+        self._args = args
+
+    def test_onepassaggregate(self):
+        obj = ReportGenerator(self._args[0])
+        agg = obj._onepassaggregate()
+        self.assertDictEqual(agg, self._args[1])
+
+if __name__ == '__main__':
+    if len(sys.argv) > 1 and sys.argv[1] == "test":
+        suite = unittest.TestSuite()
+        input = []
+        input.append('./boxlog.txt')
+        aggregate = {"01-10-2018": {"error1": 2, "error2": 1, "error3": 1}, "01-20-2018": {"error1": 1, "error3": 1}, "01-30-2018": {"error1": 1, "error2": 2, "error3": 1}}
+        input.append(aggregate)  
+        suite.addTest(ReportGeneratorTest('test_onepassaggregate', input))
+
+        unittest.TextTestRunner(verbosity=2).run(suite)
+    else:
+        report = ReportGenerator('./boxlog.txt')
+        report.printreport()
